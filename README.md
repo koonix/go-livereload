@@ -16,6 +16,7 @@ Serve a directory:
 
 ```go
 upstream := http.FileServer(http.Dir("frontend"))
+
 lr := livereload.New(upstream)
 http.ListenAndServe(":8090", lr)
 ```
@@ -25,6 +26,7 @@ Proxy another webserver:
 ```go
 u, _ := url.Parse("http://localhost:8080")
 upstream := livereload.ReverseProxy(u)
+
 lr := livereload.New(upstream)
 http.ListenAndServe(":8090", lr)
 ```

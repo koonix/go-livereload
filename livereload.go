@@ -204,7 +204,7 @@ func scriptNonceAttrs(h http.Header) []html.Attribute {
 // cspScriptNonce parses a "Content-Security-Policy" http header value
 // and extracts the script-src nonce value from it if available.
 func cspScriptNonce(csp string) string {
-	for segment := range strings.SplitSeq(csp, ";") {
+	for _, segment := range strings.Split(csp, ";") {
 		fields := strings.Fields(segment)
 		if len(fields) < 2 { // This also skips empty slices, preventing panic.
 			continue

@@ -15,7 +15,7 @@
 //	lr := livereload.New(livereload.ReverseProxy(u))
 //	http.ListenAndServe(":8090", lr)
 //
-// Reload:
+// Reload the webpages open in browsers:
 //
 //	lr.Reload()
 //

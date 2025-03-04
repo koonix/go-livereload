@@ -7,80 +7,98 @@
 package pubsub
 
 import (
+	"runtime"
 	"sync"
 )
 
 type PubSub[T any] struct {
-	mu          sync.Mutex
-	subscribers map[*subscriber[T]]struct{}
+	msg       chan T
+	addSub    chan *sub[T]
+	removeSub chan *sub[T]
+	done      chan struct{}
+	once      sync.Once
 }
 
-type subscriber[T any] struct {
-	msg    chan T
-	done   chan struct{}
-	closed bool
+type sub[T any] struct {
+	msg  chan T
+	done chan struct{}
+	once sync.Once
 }
 
 func New[T any]() *PubSub[T] {
-	return &PubSub[T]{
-		subscribers: make(map[*subscriber[T]]struct{}),
+	p := &PubSub[T]{
+		msg:       make(chan T),
+		addSub:    make(chan *sub[T]),
+		removeSub: make(chan *sub[T]),
+		done:      make(chan struct{}),
 	}
-}
-
-func (p *PubSub[T]) Publish(msg T) {
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	wg := new(sync.WaitGroup)
-	wg.Add(len(p.subscribers))
-
-	for s := range p.subscribers {
-		go func() {
-			defer wg.Done()
-			select {
-			case s.msg <- msg:
-			case <-s.done:
+	cleanup := runtime.AddCleanup(p, func(ch chan struct{}) { close(ch) }, p.done)
+	go func() {
+		cleanup.Stop()
+		subs := make(map[*sub[T]]struct{})
+		defer func() {
+			for sub := range subs {
+				close(sub.msg)
 			}
 		}()
-	}
-
-	wg.Wait()
+		for {
+			select {
+			case <-p.done:
+				return
+			case sub := <-p.addSub:
+				subs[sub] = struct{}{}
+			case sub := <-p.removeSub:
+				delete(subs, sub)
+				close(sub.msg)
+			case msg := <-p.msg:
+				wg := new(sync.WaitGroup)
+				wg.Add(len(subs))
+				for sub := range subs {
+					go func() {
+						defer wg.Done()
+						select {
+						case sub.msg <- msg:
+						case <-sub.done:
+						}
+					}()
+				}
+				wg.Wait()
+			}
+		}
+	}()
+	return p
 }
 
 func (p *PubSub[T]) Subscribe() (msg <-chan T, unsubscribe func()) {
-
-	s := &subscriber[T]{
-		msg:  make(chan T),
+	sub := &sub[T]{
+		msg:  make(chan T, 1),
 		done: make(chan struct{}),
 	}
-
-	p.mu.Lock()
-	p.subscribers[s] = struct{}{}
-	p.mu.Unlock()
-
-	unsub := func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		if !s.closed {
-			close(s.done)
-			s.closed = true
-		}
+	select {
+	case p.addSub <- sub:
+	case <-p.done:
 	}
-
-	return s.msg, unsub
+	unsub := func() {
+		sub.once.Do(func() {
+			close(sub.done)
+			select {
+			case p.removeSub <- sub:
+			case <-p.done:
+			}
+		})
+	}
+	return sub.msg, unsub
 }
 
-// Clear unsubscribes all existing subscribers.
-func (p *PubSub[T]) Clear() {
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for s := range p.subscribers {
-		if !s.closed {
-			close(s.done)
-			s.closed = true
-		}
+func (p *PubSub[T]) Publish(msg T) {
+	select {
+	case p.msg <- msg:
+	case <-p.done:
 	}
+}
+
+func (p *PubSub[T]) Close() {
+	p.once.Do(func() {
+		close(p.done)
+	})
 }

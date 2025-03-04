@@ -4,6 +4,7 @@
 package pubsub_test
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,40 +14,42 @@ import (
 
 func TestPubSub(t *testing.T) {
 
-	p := pubsub.New[string]()
+	ps := pubsub.New[string]()
 	wg := new(sync.WaitGroup)
-	n := new(atomic.Int64)
-	pmsg := "hello world"
+	rcvCount := new(atomic.Int64)
+	msg := "hello world"
 
-	ch1, unsub1 := p.Subscribe()
+	ch1, unsub1 := ps.Subscribe()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer unsub1()
-		for msg := range ch1 {
-			if msg == pmsg {
-				n.Add(1)
+		for m := range ch1 {
+			if m == msg {
+				rcvCount.Add(1)
 			} else {
-				t.Errorf("ch1 got incorrect message; want %q, got %q", pmsg, msg)
+				t.Errorf("ch1 got incorrect message; want %q, got %q", msg, m)
 			}
 		}
+		fmt.Println("1")
 	}()
 
-	ch2, unsub2 := p.Subscribe()
+	ch2, unsub2 := ps.Subscribe()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer unsub2()
-		for msg := range ch2 {
-			if msg == pmsg {
-				n.Add(1)
+		for m := range ch2 {
+			if m == msg {
+				rcvCount.Add(1)
 			} else {
-				t.Errorf("ch2 got incorrect message; want %q, got %q", pmsg, msg)
+				t.Errorf("ch2 got incorrect message; want %q, got %q", msg, m)
 			}
 		}
+		fmt.Println("2")
 	}()
 
-	ch3, unsub3 := p.Subscribe()
+	ch3, unsub3 := ps.Subscribe()
 	unsub3() // Unsubscribe immediately.
 	wg.Add(1)
 	go func() {
@@ -55,14 +58,15 @@ func TestPubSub(t *testing.T) {
 		for range ch3 {
 			t.Errorf("ch3 got message, didn't expect any")
 		}
+		fmt.Println("3")
 	}()
 
-	p.Publish(pmsg)
-	p.Clear()
+	ps.Publish(msg)
+	ps.Close()
 	wg.Wait()
 
 	want := 2
-	got := int(n.Load())
+	got := int(rcvCount.Load())
 	if want != got {
 		t.Errorf("incorrect message count; want %d, got %d", want, got)
 	}

@@ -9,11 +9,31 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/koonix/go-livereload"
 )
+
+func ExampleFileServer() {
+	lr := livereload.New(http.FileServer(http.Dir("frontend")))
+	go func() {
+		time.Sleep(10 * time.Second)
+		lr.Reload()
+	}()
+	http.ListenAndServe(":8090", lr)
+}
+
+func ExampleReverseProxy() {
+	u, _ := url.Parse("http://localhost:8080")
+	lr := livereload.New(livereload.ReverseProxy(u))
+	go func() {
+		time.Sleep(10 * time.Second)
+		lr.Reload()
+	}()
+	http.ListenAndServe(":8090", lr)
+}
 
 func TestLiveReload(t *testing.T) {
 

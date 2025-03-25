@@ -115,7 +115,7 @@ func (h *Handler) injectScript(resp http.ResponseWriter, req *http.Request) {
 	// when we deduce we need to inject a script in it.
 	buf := new(bytes.Buffer)
 
-	// Create the upstream response writer.
+	// uresp is the upstream response writer.
 	uresp := resprouter.New(
 		func(uresp *resprouter.Router) (w io.Writer) {
 			resprouter.CopyHeader(uresp.Header(), resp.Header())

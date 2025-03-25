@@ -53,7 +53,7 @@ func TestLiveReload(t *testing.T) {
 		livereload.New(upstream).ServeHTTP(resp, req)
 		body, _ := io.ReadAll(resp.Result().Body)
 		if !bytes.Contains(body, content) {
-			t.Errorf("response does not contain the body")
+			t.Errorf("response does not contain the expected body")
 		}
 		if !bytes.Contains(body, script) {
 			t.Errorf("response does not contain the event listener script")
@@ -76,7 +76,7 @@ func TestLiveReload(t *testing.T) {
 		livereload.New(upstream, option).ServeHTTP(resp, req)
 		body, _ := io.ReadAll(resp.Result().Body)
 		if !bytes.Contains(body, content) {
-			t.Errorf("response does not contain the body")
+			t.Errorf("response does not contain the expected body")
 		}
 		if !bytes.Contains(body, script) {
 			t.Errorf("response does not contain the event listener script")
@@ -98,7 +98,7 @@ func TestLiveReload(t *testing.T) {
 		livereload.New(upstream).ServeHTTP(resp, req)
 		body, _ := io.ReadAll(resp.Result().Body)
 		if !bytes.Contains(body, htmlContent) {
-			t.Errorf("response does not contain the body")
+			t.Errorf("response does not contain the expected body")
 		}
 		if !bytes.Contains(body, script) {
 			t.Errorf("response does not contain the event listener script")
@@ -118,7 +118,7 @@ func TestLiveReload(t *testing.T) {
 		livereload.New(upstream).ServeHTTP(resp, req)
 		body, _ := io.ReadAll(resp.Result().Body)
 		if !bytes.Contains(body, content) {
-			t.Errorf("response does not contain the body")
+			t.Errorf("response does not contain the expected body")
 		}
 		if !bytes.Contains(body, script) {
 			t.Errorf("response does not contain the event listener script")
@@ -138,7 +138,7 @@ func TestLiveReload(t *testing.T) {
 		livereload.New(upstream).ServeHTTP(resp, req)
 		body, _ := io.ReadAll(resp.Result().Body)
 		if !bytes.Contains(body, content) {
-			t.Errorf("response does not contain the body")
+			t.Errorf("response does not contain the expected body")
 		}
 		if !bytes.Contains(body, script) {
 			t.Errorf("response does not contain the event listener script")

@@ -78,7 +78,7 @@ func New(upstream http.Handler, options ...Option) *Handler {
 	for _, fn := range options {
 		fn(h)
 	}
-	h.script = getScript(h.eventPath)
+	h.script = createScript(h.eventPath)
 	return h
 }
 
@@ -224,12 +224,12 @@ func cspScriptNonce(csp string) string {
 	return ""
 }
 
-// getScript returns javascript code
+// createScript returns javascript code
 // that listens to the [Server-Sent Events] emitted at eventURL
 // and reloads the page if an event with type "message" and data "reload" is received.
 //
 // [Server-Sent Events]: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events
-func getScript(eventURL string) string {
+func createScript(eventURL string) string {
 	script := `
 (new EventSource("{URL}")).onmessage = function(msg) {
 	if (msg && msg.data === "reload") {

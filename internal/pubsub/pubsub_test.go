@@ -1,20 +1,19 @@
 // Copyright 2024 the go-livereload authors.
 // SPDX-License-Identifier: Apache-2.0
 
-package pubsub_test
+package pubsub
 
 import (
-	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
-
-	"github.com/koonix/go-livereload/internal/pubsub"
+	"time"
 )
 
 func TestPubSub(t *testing.T) {
 
-	ps := pubsub.New[string]()
+	ps := New[string]()
 	wg := new(sync.WaitGroup)
 	rcvCount := new(atomic.Int64)
 	msg := "hello world"
@@ -31,7 +30,6 @@ func TestPubSub(t *testing.T) {
 				t.Errorf("ch1 got incorrect message; want %q, got %q", msg, m)
 			}
 		}
-		fmt.Println("1")
 	}()
 
 	ch2, unsub2 := ps.Subscribe()
@@ -46,7 +44,6 @@ func TestPubSub(t *testing.T) {
 				t.Errorf("ch2 got incorrect message; want %q, got %q", msg, m)
 			}
 		}
-		fmt.Println("2")
 	}()
 
 	ch3, unsub3 := ps.Subscribe()
@@ -58,7 +55,6 @@ func TestPubSub(t *testing.T) {
 		for range ch3 {
 			t.Errorf("ch3 got message, didn't expect any")
 		}
-		fmt.Println("3")
 	}()
 
 	ps.Publish(msg)
@@ -69,5 +65,24 @@ func TestPubSub(t *testing.T) {
 	got := int(rcvCount.Load())
 	if want != got {
 		t.Errorf("incorrect message count; want %d, got %d", want, got)
+	}
+}
+
+func TestPubSubFinalizer(t *testing.T) {
+
+	// Create the PubSub inside an inner scope
+	// so the pointer becomes unreachable when we leave the block.
+	done := func() <-chan struct{} {
+		p := New[int]()
+		return p.done
+	}()
+
+	runtime.GC()
+
+	select {
+	case <-done:
+		// Success.
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("finalizer did not run")
 	}
 }

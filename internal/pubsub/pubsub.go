@@ -26,15 +26,23 @@ type sub[T any] struct {
 }
 
 func New[T any]() *PubSub[T] {
+
 	p := &PubSub[T]{
 		msg:       make(chan T),
 		addSub:    make(chan *sub[T]),
 		removeSub: make(chan *sub[T]),
 		done:      make(chan struct{}),
 	}
-	cleanup := runtime.AddCleanup(p, func(ch chan struct{}) { close(ch) }, p.done)
+	runtime.SetFinalizer(p, func(p *PubSub[T]) {
+		p.Close()
+	})
+
+	msg := p.msg
+	addSub := p.addSub
+	removeSub := p.removeSub
+	done := p.done
+
 	go func() {
-		cleanup.Stop()
 		subs := make(map[*sub[T]]struct{})
 		defer func() {
 			for sub := range subs {
@@ -43,14 +51,14 @@ func New[T any]() *PubSub[T] {
 		}()
 		for {
 			select {
-			case <-p.done:
+			case <-done:
 				return
-			case sub := <-p.addSub:
+			case sub := <-addSub:
 				subs[sub] = struct{}{}
-			case sub := <-p.removeSub:
+			case sub := <-removeSub:
 				delete(subs, sub)
 				close(sub.msg)
-			case msg := <-p.msg:
+			case msg := <-msg:
 				wg := new(sync.WaitGroup)
 				wg.Add(len(subs))
 				for sub := range subs {
@@ -66,18 +74,22 @@ func New[T any]() *PubSub[T] {
 			}
 		}
 	}()
+
 	return p
 }
 
 func (p *PubSub[T]) Subscribe() (msg <-chan T, unsubscribe func()) {
+
 	sub := &sub[T]{
 		msg:  make(chan T, 1),
 		done: make(chan struct{}),
 	}
+
 	select {
 	case p.addSub <- sub:
 	case <-p.done:
 	}
+
 	unsub := func() {
 		sub.once.Do(func() {
 			close(sub.done)
@@ -87,6 +99,7 @@ func (p *PubSub[T]) Subscribe() (msg <-chan T, unsubscribe func()) {
 			}
 		})
 	}
+
 	return sub.msg, unsub
 }
 
